@@ -59,8 +59,8 @@ Widget::Widget(QWidget *parent)
     mainLayout->addLayout(buttonLayout);
 
     // Initialize fortunes
-    fortunes << "You've been leading a dog's life. Stay off the furniture."
-             << "Computers are not intelligent. They only think they are.";
+//    messages << "You've been leading a dog's life. Stay off the furniture."
+//             << "Computers are not intelligent. They only think they are.";
 
     in.setVersion(QDataStream::Qt_4_0);
 }
@@ -70,16 +70,39 @@ Widget::~Widget()
 
 }
 
-void Widget::sendFortune()
+//void Widget::sendFortune()
+//{
+//    QByteArray block;
+//    QDataStream out(&block, QIODevice::WriteOnly);
+//    out.setVersion(QDataStream::Qt_4_0);
+
+//    out << fortunes[QRandomGenerator::global()->bounded(fortunes.size())];
+
+//    QTcpSocket *clientConnection = dynamic_cast<QTcpSocket*>(sender());
+//    clientConnection->write(block);
+
+//    dropClient(clientConnection);
+//}
+
+void Widget::sendMessages()
 {
     QByteArray block;
     QDataStream out(&block, QIODevice::WriteOnly);
     out.setVersion(QDataStream::Qt_4_0);
 
-    out << fortunes[QRandomGenerator::global()->bounded(fortunes.size())];
+    if (!messages.empty()) {
+        out << messages.size();
+        for (int i = 0; i < 50 && i < messages.size(); i++) {
+            out << messages[i];
+        }
+    } else {
+        out << "No messages right now";
+        qDebug() << "No messages right now";
+    }
 
     QTcpSocket *clientConnection = dynamic_cast<QTcpSocket*>(sender());
     clientConnection->write(block);
+    clientConnection->flush();
 
     dropClient(clientConnection);
 }
@@ -105,7 +128,8 @@ void Widget::hanleReadyRead()
     qDebug() << "Tr type: " << trType;
 
     if (trType == READ_FORTUNE_MARKER) {
-        sendFortune();
+//        sendFortune();
+          sendMessages();
     } else if (trType == WRITE_FORTUNE_MARKER) {
         QString fortune;
 
@@ -114,8 +138,14 @@ void Widget::hanleReadyRead()
         in >> fortune;
         if (!in.commitTransaction())
             return;
-        qDebug() << "Fortune: " << fortune;
-        fortunes.push_back(fortune);
+
+        qDebug() << "Message: " << fortune;
+
+        if (messages.size() > 50) {
+             messages.clear();
+        }
+        messages.push_back(fortune);
+//        fortunes.push_back(fortune);
 
         dropClient(dynamic_cast<QTcpSocket*>(sender()));
     } else {

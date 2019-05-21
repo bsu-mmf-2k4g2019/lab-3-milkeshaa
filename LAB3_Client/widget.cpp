@@ -6,10 +6,12 @@
 #include <QMessageBox>
 #include <QTimer>
 #include <QDebug>
+#include <QTextBlock>
 
 Widget::Widget(QWidget *parent)
     : QWidget(parent)
     , hostCombo(new QComboBox)
+    , messageBlock(new QTextEdit)
     , portLineEdit(new QLineEdit)
     , getFortuneButton(new QPushButton("Get Fortune"))
     , setFortuneButton(new QPushButton("Set Fortune"))
@@ -49,6 +51,7 @@ Widget::Widget(QWidget *parent)
 
     fortuneLineEdit = new QLineEdit("This examples requires that you run the "
                                 "Fortune Server example as well.");
+    messageBlock = new QTextEdit();
 
     getFortuneButton->setDefault(true);
     getFortuneButton->setEnabled(false);
@@ -80,9 +83,10 @@ Widget::Widget(QWidget *parent)
     mainLayout->addWidget(portLabel, 1, 0);
     mainLayout->addWidget(portLineEdit, 1, 1);
     mainLayout->addWidget(fortuneLineEdit, 2, 0, 1, 2);
-    mainLayout->addWidget(getFortuneButton, 3, 1, 1, 1);
-    mainLayout->addWidget(setFortuneButton, 4, 1, 1, 1);
-    mainLayout->addWidget(quitButton, 3, 0, 1, 1);
+    mainLayout->addWidget(messageBlock, 3, 0, 1, 2);
+    mainLayout->addWidget(getFortuneButton, 4, 1, 1, 1);
+    mainLayout->addWidget(setFortuneButton, 5, 1, 1, 1);
+    mainLayout->addWidget(quitButton, 4, 0, 1, 1);
 
     portLineEdit->setFocus();
 
@@ -118,7 +122,7 @@ void Widget::openConnection()
 
 void Widget::requestNewFortune()
 {
-    qDebug() << "New fortune is requested";
+    qDebug() << "Messages are requested";
     QByteArray block;
     QDataStream out(&block, QIODevice::WriteOnly);
     out.setVersion(QDataStream::Qt_5_10);
@@ -131,7 +135,10 @@ void Widget::requestNewFortune()
     } else if (setFortuneFlag) {
         setFortuneFlag = false;
         out << WRITE_FORTUNE_MARKER;
-        out << fortuneLineEdit->text();
+        QString message = fortuneLineEdit->text();
+        fortuneLineEdit->clear();
+        out << message;
+        messageBlock->append(message);
     } else {
         qDebug() << "No action is required";
     }
@@ -143,11 +150,20 @@ void Widget::requestNewFortune()
 
 void Widget::readFortune()
 {
-    qDebug() << "Read fortune is called";
+    qDebug() << "Method 'read messages' is called";
     in.startTransaction();
 
     QString nextFortune;
-    in >> nextFortune;
+    int numOfMessages = 0;
+    in >> numOfMessages;
+
+    if (numOfMessages > 0) {
+        messageBlock->clear();
+        for (int i = 0; i < numOfMessages; i++) {
+            in >> nextFortune;
+            messageBlock->append(nextFortune);
+        }
+    }
 
     if (!in.commitTransaction())
         return;
@@ -159,7 +175,7 @@ void Widget::readFortune()
     }
 
     currentFortune = nextFortune;
-    fortuneLineEdit->setText(currentFortune);
+//    messageBlock->setText(currentFortune);
     getFortuneButton->setEnabled(true);
     setFortuneButton->setEnabled(true);
     disconnect(tcpSocket, &QAbstractSocket::readyRead,
@@ -196,10 +212,8 @@ void Widget::displayError(QAbstractSocket::SocketError socketError)
 void Widget::enableFortuneButtons()
 {
     getFortuneButton->setEnabled(!hostCombo->currentText().isEmpty() &&
-                                 !portLineEdit->text().isEmpty() &&
-                                 !fortuneLineEdit->text().isEmpty());
+                                 !portLineEdit->text().isEmpty());
     setFortuneButton->setEnabled(!hostCombo->currentText().isEmpty() &&
                                  !portLineEdit->text().isEmpty() &&
                                  !fortuneLineEdit->text().isEmpty());
-
 }
