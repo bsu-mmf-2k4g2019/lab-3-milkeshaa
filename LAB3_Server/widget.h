@@ -7,6 +7,7 @@
 #include <QVector>
 #include <QDataStream>
 #include <QTcpServer>
+#include <QQueue>
 
 // int is used for this constants
 #define READ_FORTUNE_MARKER (0u)
@@ -22,8 +23,7 @@ public:
     ~Widget();
 
 private slots:
-//    void sendFortune();
-    void sendMessages();
+    void sendMessages(QTcpSocket*);
     void hanleNewConnection();
     void hanleReadyRead();
     void dropClient(QTcpSocket *client);
@@ -33,6 +33,7 @@ private:
     QTcpServer *tcpServer = nullptr;
     QVector<QString> fortunes;
     QVector<QString> messages;
+    QQueue<QTcpSocket*> users;
 
     QDataStream in;
     int trType = NO_TRANSACTION_TYPE;

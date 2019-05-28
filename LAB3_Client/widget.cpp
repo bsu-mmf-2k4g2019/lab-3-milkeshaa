@@ -13,11 +13,13 @@ Widget::Widget(QWidget *parent)
     , hostCombo(new QComboBox)
     , messageBlock(new QTextEdit)
     , portLineEdit(new QLineEdit)
-    , getFortuneButton(new QPushButton("Get Fortune"))
-    , setFortuneButton(new QPushButton("Set Fortune"))
+    , getFortuneButton(new QPushButton("Get Messages"))
+    , setFortuneButton(new QPushButton("Set Message"))
     , tcpSocket(new QTcpSocket(this))
 {
     qDebug() << "Constructor is called";
+    connect(tcpSocket, &QAbstractSocket::readyRead,
+            this, &Widget::readFortune);
     hostCombo->setEditable(true);
     // find out name of this machine
     QString name = QHostInfo::localHostName();
@@ -49,8 +51,7 @@ Widget::Widget(QWidget *parent)
     auto portLabel = new QLabel("Server port:");
     portLabel->setBuddy(portLineEdit);
 
-    fortuneLineEdit = new QLineEdit("This examples requires that you run the "
-                                "Fortune Server example as well.");
+    fortuneLineEdit = new QLineEdit("Type new message!");
     messageBlock = new QTextEdit();
 
     getFortuneButton->setDefault(true);
@@ -129,12 +130,8 @@ void Widget::requestNewFortune()
 
     if (getFortuneFlag) {
         getFortuneFlag = false;
-        out << READ_FORTUNE_MARKER;
-        connect(tcpSocket, &QAbstractSocket::readyRead,
-                this, &Widget::readFortune);
     } else if (setFortuneFlag) {
         setFortuneFlag = false;
-        out << WRITE_FORTUNE_MARKER;
         QString message = fortuneLineEdit->text();
         fortuneLineEdit->clear();
         out << message;
@@ -142,7 +139,6 @@ void Widget::requestNewFortune()
     } else {
         qDebug() << "No action is required";
     }
-
 
     tcpSocket->write(block);
     tcpSocket->flush();
@@ -175,11 +171,8 @@ void Widget::readFortune()
     }
 
     currentFortune = nextFortune;
-//    messageBlock->setText(currentFortune);
     getFortuneButton->setEnabled(true);
     setFortuneButton->setEnabled(true);
-    disconnect(tcpSocket, &QAbstractSocket::readyRead,
-               this, &Widget::readFortune);
 }
 
 void Widget::displayError(QAbstractSocket::SocketError socketError)
@@ -188,19 +181,19 @@ void Widget::displayError(QAbstractSocket::SocketError socketError)
     case QAbstractSocket::RemoteHostClosedError:
         break;
     case QAbstractSocket::HostNotFoundError:
-        QMessageBox::information(this, tr("Fortune Client"),
+        QMessageBox::information(this, tr("Message Client"),
                                  tr("The host was not found. Please check the "
                                     "host name and port settings."));
         break;
     case QAbstractSocket::ConnectionRefusedError:
-        QMessageBox::information(this, tr("Fortune Client"),
+        QMessageBox::information(this, tr("Message Client"),
                                  tr("The connection was refused by the peer. "
                                     "Make sure the fortune server is running, "
                                     "and check that the host name and port "
                                     "settings are correct."));
         break;
     default:
-        QMessageBox::information(this, tr("Fortune Client"),
+        QMessageBox::information(this, tr("Message Client"),
                                  tr("The following error occurred: %1.")
                                  .arg(tcpSocket->errorString()));
     }
