@@ -58,10 +58,6 @@ Widget::Widget(QWidget *parent)
     mainLayout->addWidget(statusLabel);
     mainLayout->addLayout(buttonLayout);
 
-    // Initialize fortunes
-//    messages << "You've been leading a dog's life. Stay off the furniture."
-//             << "Computers are not intelligent. They only think they are.";
-
     in.setVersion(QDataStream::Qt_4_0);
 }
 
@@ -70,21 +66,7 @@ Widget::~Widget()
 
 }
 
-//void Widget::sendFortune()
-//{
-//    QByteArray block;
-//    QDataStream out(&block, QIODevice::WriteOnly);
-//    out.setVersion(QDataStream::Qt_4_0);
-
-//    out << fortunes[QRandomGenerator::global()->bounded(fortunes.size())];
-
-//    QTcpSocket *clientConnection = dynamic_cast<QTcpSocket*>(sender());
-//    clientConnection->write(block);
-
-//    dropClient(clientConnection);
-//}
-
-void Widget::sendMessages()
+void Widget::sendMessages(QTcpSocket* client)
 {
     QByteArray block;
     QDataStream out(&block, QIODevice::WriteOnly);
@@ -100,62 +82,61 @@ void Widget::sendMessages()
         qDebug() << "No messages right now";
     }
 
-    QTcpSocket *clientConnection = dynamic_cast<QTcpSocket*>(sender());
-    clientConnection->write(block);
-    clientConnection->flush();
+    client->write(block);
+    client->flush();
 
-    dropClient(clientConnection);
+//    dropClient(clientConnection);
 }
 
 void Widget::hanleNewConnection()
 {
     QTcpSocket *clientConnection = tcpServer->nextPendingConnection();
     in.setDevice(clientConnection);
+    users.push_back(clientConnection);
+    if (!messages.empty()) {
+        sendMessages(clientConnection);
+    }
     connect(clientConnection, &QAbstractSocket::readyRead, this, &Widget::hanleReadyRead);
 }
 
 void Widget::hanleReadyRead()
 {
     qDebug() << "Read fortune is called";
-
-    // Read transaction type
-    if (trType == -1) {
-        in.startTransaction();
-        in >> trType;
-        if (!in.commitTransaction())
-            return;
-    }
-    qDebug() << "Tr type: " << trType;
-
-    if (trType == READ_FORTUNE_MARKER) {
-//        sendFortune();
-          sendMessages();
-    } else if (trType == WRITE_FORTUNE_MARKER) {
-        QString fortune;
+        QString message;
 
         // Read fortune from client
         in.startTransaction();
-        in >> fortune;
-        if (!in.commitTransaction())
-            return;
+        in >> message;
+        if (message != "") {
+            if (message == "Disconnect") {
+                dropClient(dynamic_cast<QTcpSocket*>(sender()));
+                return;
+            }
+            if (!in.commitTransaction())
+                return;
 
-        qDebug() << "Message: " << fortune;
+            qDebug() << "Message: " << message;
 
-        if (messages.size() > 50) {
-             messages.clear();
+            if (messages.size() > 50) {
+                 messages.clear();
+            }
+            messages.push_back(message);
         }
-        messages.push_back(fortune);
-//        fortunes.push_back(fortune);
 
-        dropClient(dynamic_cast<QTcpSocket*>(sender()));
-    } else {
-        qDebug() << "Wrong transaction type: " << trType;
-    }
+//        dropClient(dynamic_cast<QTcpSocket*>(sender()));
 }
 
 void Widget::dropClient(QTcpSocket *client)
 {
-    trType = NO_TRANSACTION_TYPE;
+    int index = users.indexOf(client);
+    users.remove(index);
+    QByteArray block;
+    QDataStream out(&block, QIODevice::WriteOnly);
+    out.setVersion(QDataStream::Qt_4_0);
+    out << "YOU ARE DISCONNECTED! CLICK ON CONNECT TO RECONNECT";
+    client->write(block);
+    client->flush();
+
     disconnect(client, &QAbstractSocket::readyRead, this, &Widget::hanleReadyRead);
     connect(client, &QAbstractSocket::disconnected,
             client, &QObject::deleteLater);

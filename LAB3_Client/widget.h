@@ -23,7 +23,7 @@ public:
     ~Widget();
 
 private slots:
-    void getFortune();
+    void connectToServer();
     void setFortune();
     void openConnection();
     void requestNewFortune();
@@ -41,7 +41,7 @@ private:
 
     QTcpSocket *tcpSocket = nullptr;
     QDataStream in;
-    QString currentFortune;
+    QString currentMessage;
     bool getFortuneFlag = 0;
     bool setFortuneFlag = 0;
 };

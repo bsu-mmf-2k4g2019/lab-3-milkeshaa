@@ -22,8 +22,7 @@ public:
     ~Widget();
 
 private slots:
-//    void sendFortune();
-    void sendMessages();
+    void sendMessages(QTcpSocket *client);
     void hanleNewConnection();
     void hanleReadyRead();
     void dropClient(QTcpSocket *client);
@@ -33,9 +32,10 @@ private:
     QTcpServer *tcpServer = nullptr;
     QVector<QString> fortunes;
     QVector<QString> messages;
+    QVector<QTcpSocket*> users;
 
     QDataStream in;
-    int trType = NO_TRANSACTION_TYPE;
+//    int trType = NO_TRANSACTION_TYPE;
 };
 
 #endif // WIDGET_H
